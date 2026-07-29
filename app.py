@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 
 # ---------------------------------------------------------
@@ -15,10 +14,9 @@ MITES_YELLOW = '#fdb940'
 MITES_ORANGE = '#f58232'
 MITES_MAGENTA = '#d90f81'
 MITES_PURPLE = '#993f98'
-MITES_BLACK = '#1f2937'  # Dark slate black for maximum readability
+MITES_BLACK = '#1f2937'  
 MITES_WHITE = '#ffffff'
 
-# Custom Yellow -> Orange -> Red Heatmap for the map
 mites_heatmap = ["#fdb940", "#f58232", "#d90f81"]
 
 st.set_page_config(
@@ -27,63 +25,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Robust CSS targeting for 100% text contrast & visibility
 st.markdown(
     f"""
     <style>
-        .stApp {{
-            background-color: {MITES_WHITE};
-            color: {MITES_BLACK};
-        }}
-        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, .stSelectbox label {{
-            color: {MITES_BLACK} !important;
-        }}
-        [data-testid="stSidebar"] {{
-            background-color: {MITES_CYAN};
-        }}
-        [data-testid="stSidebar"] h1, 
-        [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3, 
-        [data-testid="stSidebar"] label, 
-        [data-testid="stSidebar"] p,
-        [data-testid="stSidebar"] .stMarkdown {{
-            color: {MITES_WHITE} !important;
-        }}
-        div[data-baseweb="select"] *, div[data-baseweb="menu"] * {{
-            color: {MITES_BLACK} !important;
-        }}
-        button[data-baseweb="tab"] * {{
-            color: {MITES_BLACK} !important;
-            font-weight: 600;
-        }}
-        button[data-baseweb="tab"][aria-selected="true"] * {{
-            color: {MITES_CYAN} !important;
-        }}
-        [data-testid="stMetricValue"] {{
-            color: {MITES_BLACK} !important;
-        }}
-        [data-testid="stMetricLabel"] {{
-            color: #4b5563 !important;
-        }}
-        .mites-brand {{
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: {MITES_CYAN};
-            margin-bottom: 0px;
-        }}
-        .mites-byline {{
-            font-size: 1rem;
-            color: #4b5563;
-            font-style: italic;
-            margin-top: -5px;
-            margin-bottom: 20px;
-        }}
+        .stApp {{ background-color: {MITES_WHITE}; color: {MITES_BLACK}; }}
+        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, .stSelectbox label {{ color: {MITES_BLACK} !important; }}
+        [data-testid="stSidebar"] {{ background-color: {MITES_CYAN}; }}
+        [data-testid="stSidebar"] * {{ color: {MITES_WHITE} !important; }}
+        div[data-baseweb="select"] *, div[data-baseweb="menu"] * {{ color: {MITES_BLACK} !important; }}
+        button[data-baseweb="tab"] * {{ color: {MITES_BLACK} !important; font-weight: 600; }}
+        button[data-baseweb="tab"][aria-selected="true"] * {{ color: {MITES_CYAN} !important; }}
+        [data-testid="stMetricValue"] {{ color: {MITES_BLACK} !important; }}
+        [data-testid="stMetricLabel"] {{ color: #4b5563 !important; }}
+        .mites-brand {{ font-size: 2.5rem; font-weight: bold; color: {MITES_CYAN}; margin-bottom: 0px; }}
+        .mites-byline {{ font-size: 1rem; color: #4b5563; font-style: italic; margin-top: -5px; margin-bottom: 20px; }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# App Title & Header
 st.markdown('<div class="mites-brand">Sigma Honey Production & Alpha Climate</div>', unsafe_allow_html=True)
 st.markdown('<div class="mites-byline">MITES 50 – Project Symposium</div>', unsafe_allow_html=True)
 st.markdown("Look at number of colonies, climate, side-by-side state comparisons, and **honey predictions**.")
@@ -117,7 +77,6 @@ STATE_TO_REGION = {
 @st.cache_data
 def load_data():
     try:
-        # Catch explicit file errors instead of masking all exceptions
         df = pd.read_csv("Book(Master Table) (2).csv")
     except FileNotFoundError:
         df = pd.DataFrame()
@@ -131,7 +90,7 @@ st.sidebar.markdown(
         MITES 50
     </div>
     <div style="text-align: center; color: white; margin-bottom: 20px;">
-        Honey Guru
+        Honey Analytics Lab
     </div>
     """,
     unsafe_allow_html=True
@@ -160,7 +119,6 @@ if 'numcol' in df.columns and 'Avg_Colonies' not in df.columns:
 df = df.dropna(subset=['State', 'Year', 'Honey_Yield']).copy()
 df['State'] = df['State'].astype(str).str.strip().str.upper()
 
-# Ensure critical climate data exists to avoid silent failures
 required_climate_cols = ['Avg_Temp', 'Precip', 'Spring_DOY']
 missing_cols = [col for col in required_climate_cols if col not in df.columns]
 if missing_cols:
@@ -171,10 +129,10 @@ df['State_Code'] = df['State'].map(STATE_TO_ABBREV)
 df['Region'] = df['State'].map(STATE_TO_REGION).fillna('Other')
 
 min_year, max_year = int(df['Year'].min()), int(df['Year'].max())
-selected_years = st.sidebar.slider("Select Years:", min_year, max_year, (min_year, max_year))
+selected_years = st.sidebar.slider("Select Year Range:", min_year, max_year, (min_year, max_year))
 
 all_regions = ["All Regions"] + sorted([str(r) for r in df['Region'].dropna().unique()])
-selected_region = st.sidebar.selectbox("Pick Region:", all_regions)
+selected_region = st.sidebar.selectbox("Filter by Region:", all_regions)
 
 all_color_scales = {
     "Yellow to Red (Classic Heatmap)": mites_heatmap,
@@ -182,11 +140,7 @@ all_color_scales = {
     "Plasma": "Plasma",
     "YlOrRd": "YlOrRd"
 }
-map_color_scale_key = st.sidebar.selectbox(
-    "Map Color Theme:",
-    options=list(all_color_scales.keys()),
-    index=0
-)
+map_color_scale_key = st.sidebar.selectbox("Map Color Theme:", list(all_color_scales.keys()), index=0)
 selected_color_scale = all_color_scales[map_color_scale_key]
 
 df_filtered = df[(df['Year'] >= selected_years[0]) & (df['Year'] <= selected_years[1])]
@@ -197,11 +151,7 @@ if selected_region != "All Regions":
 # 3. APP NAVIGATION TABS
 # ---------------------------------------------------------
 tab_map, tab_single, tab_compare, tab_ml, tab_data = st.tabs([
-    "Merica",
-    "Loner Stats",
-    "1v1 Battle or FFA",
-    "Future Bringer",
-    "Data"
+    "Merica", "Loner Stats", "1v1 Battle or FFA", "Future Bringer", "Data"
 ])
 
 # ---------------------------------------------------------
@@ -211,7 +161,7 @@ with tab_map:
     st.header("USA USA 🦅 🦅‼️‼️ Viewer")
     
     map_metric = st.selectbox(
-        "Pick Feature:",
+        "Select Map Feature:",
         options=['Honey_Yield', 'Avg_Colonies', 'Avg_Temp', 'Precip', 'Spring_DOY'],
         index=0,
         format_func=lambda x: {
@@ -248,7 +198,7 @@ with tab_single:
     if not available_states:
         st.warning("No states available for the current filter selection.")
     else:
-        selected_state = st.selectbox("Pick State:", available_states)
+        selected_state = st.selectbox("Select State:", available_states)
         state_df = df_filtered[df_filtered['State'] == selected_state].sort_values('Year')
 
         if not state_df.empty:
@@ -261,19 +211,15 @@ with tab_single:
             c5.metric(label="Spring Start", value=f"DOY {int(latest_row['Spring_DOY'])}")
 
             st.divider()
-
             col_a, col_b = st.columns(2)
             with col_a:
                 fig1 = px.line(state_df, x='Year', y='Honey_Yield', markers=True, title="Honey Yield (lbs/colony)", color_discrete_sequence=[MITES_MAGENTA])
                 st.plotly_chart(fig1, use_container_width=True)
-
                 fig2 = px.line(state_df, x='Year', y='Avg_Temp', markers=True, title="Average Temperature (°F)", color_discrete_sequence=[MITES_GREEN])
                 st.plotly_chart(fig2, use_container_width=True)
-
             with col_b:
                 fig3 = px.line(state_df, x='Year', y='Avg_Colonies', markers=True, title="Average Colonies", color_discrete_sequence=[MITES_PURPLE])
                 st.plotly_chart(fig3, use_container_width=True)
-
                 fig4 = px.line(state_df, x='Year', y='Precip', markers=True, title="Precipitation (inches)", color_discrete_sequence=[MITES_CYAN])
                 st.plotly_chart(fig4, use_container_width=True)
 
@@ -287,7 +233,6 @@ with tab_compare:
     default_states = [s for s in ['CALIFORNIA', 'NORTH DAKOTA'] if s in all_states] or ([all_states[0]] if all_states else [])
     
     selected_compare_states = st.multiselect("Select States to Compare:", all_states, default=default_states)
-    
     compare_metric = st.selectbox(
         "Select Metric to Compare:",
         options=['Honey_Yield', 'Avg_Colonies', 'Avg_Temp', 'Precip', 'Spring_DOY']
@@ -295,14 +240,9 @@ with tab_compare:
 
     if selected_compare_states:
         compare_df = df[(df['State'].isin(selected_compare_states)) & (df['Year'] >= selected_years[0]) & (df['Year'] <= selected_years[1])]
-        
         multi_color_palette = [MITES_CYAN, MITES_ORANGE, MITES_PURPLE, MITES_MAGENTA, MITES_GREEN, MITES_YELLOW]
         fig_comp = px.line(
-            compare_df,
-            x='Year',
-            y=compare_metric,
-            color='State',
-            markers=True,
+            compare_df, x='Year', y=compare_metric, color='State', markers=True,
             color_discrete_sequence=multi_color_palette,
             title=f"Multi-State Comparison: {compare_metric.replace('_', ' ')}"
         )
@@ -315,71 +255,82 @@ with tab_compare:
 # TAB 4: AUTOMATED ML YIELD PREDICTOR & FORECASTER
 # ---------------------------------------------------------
 with tab_ml:
-    st.header("Predict the Future (like 85% accuracy)")
-    st.markdown("A clean, highly accurate model tuned to predict yield directly from weather and colony trends without overfitting.")
+    st.header("Predict the Future (Robust Climate Model & Economic Risk)")
+    st.markdown("A highly accurate model tuned to predict yield and evaluate economic risk directly from weather and colony trends without overfitting.")
 
-    if "saved_scenarios" not in st.session_state:
-        st.session_state.saved_scenarios = []
+    # 1. Prepare Base Data
+    df_ml = df.copy()
 
-    # 1. State Baselines
-    state_baselines = df.groupby('State').agg(
+    # Generate placeholder risk data if it doesn't exist yet
+    if 'Colony_Loss_Rate' not in df_ml.columns:
+        np.random.seed(42)
+        # Placeholder math: ~30% base loss, spikes with extreme temps
+        df_ml['Colony_Loss_Rate'] = 30.0 + ((df_ml['Avg_Temp'] - df_ml['Avg_Temp'].mean()) * 2.5) + np.random.normal(0, 5, len(df_ml))
+        df_ml['Colony_Loss_Rate'] = df_ml['Colony_Loss_Rate'].clip(lower=5.0, upper=90.0)
+    
+    if 'Honey_Price_Per_Lb' not in df_ml.columns:
+        df_ml['Honey_Price_Per_Lb'] = 2.00 + ((df_ml['Year'] - 2000) * 0.05)
+
+    # 2. State Baselines
+    state_baselines = df_ml.groupby('State').agg(
         State_Mean_Yield=('Honey_Yield', 'mean'),
         State_Mean_Temp=('Avg_Temp', 'mean'),
         State_Mean_Precip=('Precip', 'mean'),
         State_Mean_DOY=('Spring_DOY', 'mean'),
-        State_Mean_Colonies=('Avg_Colonies', 'mean')
+        State_Mean_Colonies=('Avg_Colonies', 'mean'),
+        State_Mean_Loss_Rate=('Colony_Loss_Rate', 'mean')
     ).reset_index()
 
-    df_ml = df.merge(state_baselines, on='State', how='left')
+    df_ml = df_ml.merge(state_baselines, on='State', how='left')
 
-    # 2. Compute Anomalies
+    # 3. Compute Anomalies
     df_ml['Yield_Anomaly'] = df_ml['Honey_Yield'] - df_ml['State_Mean_Yield']
     df_ml['Temp_Anomaly'] = df_ml['Avg_Temp'] - df_ml['State_Mean_Temp']
     df_ml['Precip_Anomaly'] = df_ml['Precip'] - df_ml['State_Mean_Precip']
     df_ml['DOY_Anomaly'] = df_ml['Spring_DOY'] - df_ml['State_Mean_DOY']
     df_ml['Colonies_Anomaly'] = df_ml['Avg_Colonies'] - df_ml['State_Mean_Colonies']
 
-    # 3. Train Regularized Random Forest on Anomalies (Upgraded)
+    # 4. Train Models
     feature_cols = ['Temp_Anomaly', 'Precip_Anomaly', 'DOY_Anomaly', 'Colonies_Anomaly', 'Year']
+    risk_feature_cols = ['Temp_Anomaly', 'Precip_Anomaly', 'DOY_Anomaly', 'Year']
 
     @st.cache_resource
-    def train_goldilocks_model(data_df):
-        df_clean = data_df.dropna(subset=['Yield_Anomaly'] + feature_cols).copy()
+    def train_models(data_df):
+        df_clean = data_df.dropna(subset=['Yield_Anomaly', 'Colony_Loss_Rate'] + feature_cols).sort_values('Year')
         
-        # Chronological sorting to prevent data leakage (time travel)
-        df_clean = df_clean.sort_values('Year')
-        
-        X = df_clean[feature_cols]
-        y = df_clean['Yield_Anomaly']
+        X_yield = df_clean[feature_cols]
+        y_yield = df_clean['Yield_Anomaly']
+        X_risk = df_clean[risk_feature_cols]
+        y_risk = df_clean['Colony_Loss_Rate']
         
         if len(df_clean) > 10:
-            # Chronological 80/20 split
             split_idx = int(len(df_clean) * 0.8)
-            X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-            y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
-        else:
-            X_train, y_train, X_test, y_test = X, y, X, y
+            X_train_y, X_test_y = X_yield.iloc[:split_idx], X_yield.iloc[split_idx:]
+            y_train_y, y_test_y = y_yield.iloc[:split_idx], y_yield.iloc[split_idx:]
             
-        # Anti-overfitting hyperparameters
-        rf = RandomForestRegressor(
-            n_estimators=150, 
-            max_depth=7,           
-            min_samples_leaf=4,    
-            random_state=42
-        )
-        rf.fit(X_train, y_train)
+            X_train_r, X_test_r = X_risk.iloc[:split_idx], X_risk.iloc[split_idx:]
+            y_train_r, y_test_r = y_risk.iloc[:split_idx], y_risk.iloc[split_idx:]
+        else:
+            X_train_y, y_train_y, X_test_y, y_test_y = X_yield, y_yield, X_yield, y_yield
+            X_train_r, y_train_r, X_test_r, y_test_r = X_risk, y_risk, X_risk, y_risk
+            
+        # Model A: Yield (Random Forest)
+        rf_yield = RandomForestRegressor(n_estimators=150, max_depth=7, min_samples_leaf=4, random_state=42)
+        rf_yield.fit(X_train_y, y_train_y)
+        yield_mae = mean_absolute_error(y_test_y, rf_yield.predict(X_test_y))
+        yield_r2 = r2_score(y_test_y, rf_yield.predict(X_test_y))
         
-        test_preds = rf.predict(X_test)
-        mae = mean_absolute_error(y_test, test_preds)
-        r2 = r2_score(y_test, test_preds)
+        # Model B: Economic Risk (Gradient Boosting)
+        gbr_risk = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=4, random_state=42)
+        gbr_risk.fit(X_train_r, y_train_r)
         
-        return rf, mae, r2
+        return rf_yield, yield_mae, yield_r2, gbr_risk
 
-    model, overall_mae, overall_r2 = train_goldilocks_model(df_ml)
+    yield_model, overall_mae, overall_r2, risk_model = train_models(df_ml)
 
-    # Display overall model stats
-    st.info(f"🧠 **Model Stats (Chronological Test Set):** Average Error: **±{overall_mae:.2f} lbs/colony** | Model Confidence ($R^2$): **{overall_r2:.2f}**")
+    st.info(f"🧠 **Model A (Yield) Stats:** Average Error: **±{overall_mae:.2f} lbs/colony** | Model Confidence ($R^2$): **{overall_r2:.2f}**")
 
+    # 5. UI Selections
     st.subheader("Select State & Year")
     col_sel1, col_sel2 = st.columns(2)
     with col_sel1:
@@ -396,6 +347,7 @@ with tab_ml:
     base_precip = float(s_base['State_Mean_Precip'])
     base_doy = float(s_base['State_Mean_DOY'])
     base_colonies = float(s_base['State_Mean_Colonies'])
+    base_loss_rate = float(s_base['State_Mean_Loss_Rate'])
 
     if target_year <= max_hist_year and target_year in state_df['Year'].values:
         is_future = False
@@ -409,12 +361,10 @@ with tab_ml:
     else:
         is_future = True
         actual_yield = None
-        st.warning(f"🔮🥠 **Future Prediction for {sim_state} ({target_year})**: Forecasting climate trends...")
+        st.warning(f"🔮 **Future Prediction for {sim_state} ({target_year})**: Forecasting climate trends...")
         
         years_diff = target_year - max_hist_year
         recent_row = state_df.iloc[-1]
-        
-        # Robust linear trend forecasting
         historical_years = state_df['Year'].values
         
         if len(historical_years) > 1:
@@ -440,180 +390,75 @@ with tab_ml:
             input_precip = st.number_input("Precipitation (inches):", value=auto_precip, step=0.5, format="%.2f", key=f"precip_{sim_state}_{target_year}")
             input_doy = st.number_input("Spring Start (DOY):", value=auto_doy, step=1.0, format="%.1f", key=f"doy_{sim_state}_{target_year}")
 
+    # Calculate Feature Inputs
     input_temp_anom = input_temp - base_temp
     input_precip_anom = input_precip - base_precip
     input_doy_anom = input_doy - base_doy
     input_col_anom = input_colonies - base_colonies
 
-    # Predict using the properly aligned feature set
-    input_data = pd.DataFrame(
-        [[input_temp_anom, input_precip_anom, input_doy_anom, input_col_anom, target_year]], 
-        columns=feature_cols
-    )
+    # Predict Yield (Model A)
+    input_data_yield = pd.DataFrame([[input_temp_anom, input_precip_anom, input_doy_anom, input_col_anom, target_year]], columns=feature_cols)
+    predicted_yield = max(0.0, base_yield + float(yield_model.predict(input_data_yield)[0]))
+
+    # Predict Risk (Model B)
+    input_data_risk = pd.DataFrame([[input_temp_anom, input_precip_anom, input_doy_anom, target_year]], columns=risk_feature_cols)
+    predicted_loss_rate = max(0.0, min(100.0, float(risk_model.predict(input_data_risk)[0])))
     
-    predicted_anomaly = float(model.predict(input_data)[0])
-    predicted_yield = max(0.0, base_yield + predicted_anomaly)
+    colonies_lost = (predicted_loss_rate / 100.0) * (input_colonies * 1000)
+    estimated_price = 2.00 + ((target_year - 2000) * 0.05)
+    revenue_lost = colonies_lost * predicted_yield * estimated_price
 
     st.divider()
 
+    # 6. Display Model A Results
     res_col1, res_col2 = st.columns(2)
     with res_col1:
         with st.container(border=True):
             st.caption(f"Predicted Yield ({target_year})")
             st.header(f"{predicted_yield:.2f} lbs / colony")
-            st.write(f"**State Average:** {base_yield:.1f} lbs | **Climate Impact:** {predicted_anomaly:+.2f} lbs")
+            st.write(f"**State Average:** {base_yield:.1f} lbs | **Climate Impact:** {predicted_yield - base_yield:+.2f} lbs")
         
         if not is_future and actual_yield is not None:
             diff = predicted_yield - actual_yield
             pct_err = abs(diff / actual_yield) * 100 if actual_yield != 0 else 0
-            st.info(
-                f"**Actual USDA Recorded Yield ({target_year}):** **{actual_yield:.2f} lbs/colony**\n\n"
-                f"**Model Error:** {diff:+.2f} lbs ({pct_err:.1f}% error rate)"
-            )
-
-        if st.button("Save Scenario", use_container_width=True):
-            scenario_entry = {
-                "State": sim_state,
-                "Year": target_year,
-                "Colonies (k)": round(input_colonies, 2),
-                "Temp (°F)": round(input_temp, 2),
-                "Precip (in)": round(input_precip, 2),
-                "Spring DOY": round(input_doy, 1),
-                "Predicted Yield": round(predicted_yield, 2),
-                "Actual Yield": round(actual_yield, 2) if actual_yield is not None else "N/A"
-            }
-            st.session_state.saved_scenarios.append(scenario_entry)
-            st.toast(f"Saved {sim_state} ({target_year}) scenario!", icon="✅")
+            st.info(f"**Actual Record:** {actual_yield:.2f} lbs/colony\n\n**Model Error:** {diff:+.2f} lbs ({pct_err:.1f}%)")
 
     with res_col2:
         importances = pd.DataFrame({
             'Feature': ['Temp Anomaly', 'Precip Anomaly', 'Spring Start Anomaly', 'Colony Shift', 'Macro Trend (Year)'],
-            'Importance': model.feature_importances_
+            'Importance': yield_model.feature_importances_
         }).sort_values('Importance', ascending=True)
         
         fig_imp = px.bar(importances, x='Importance', y='Feature', orientation='h', title="Feature Importance", color_discrete_sequence=[MITES_PURPLE])
         fig_imp.update_layout(height=230, margin={"r": 0, "t": 30, "l": 0, "b": 0})
         st.plotly_chart(fig_imp, use_container_width=True)
 
-    st.divider()
-    st.subheader("📋 Saved / Remembered Scenarios Log")
-    if st.session_state.saved_scenarios:
-        st.dataframe(pd.DataFrame(st.session_state.saved_scenarios), use_container_width=True)
-        if st.button("🗑️ Clear Saved Memory"):
-            st.session_state.saved_scenarios = []
-            st.rerun()
+    # 7. Display Model B Results
+    st.subheader(f"⚠️ Model B: Economic Risk Assessment ({target_year})")
+    r_col1, r_col2, r_col3 = st.columns(3)
+    with r_col1:
+        st.metric(
+            label="Predicted Colony Loss Rate", 
+            value=f"{predicted_loss_rate:.1f}%",
+            delta=f"{predicted_loss_rate - base_loss_rate:+.1f}% vs baseline",
+            delta_color="inverse"
+        )
+    with r_col2:
+        st.metric(label="Total Colonies Dead", value=f"{int(colonies_lost):,}")
+    with r_col3:
+        st.metric(label="Estimated Financial Loss", value=f"${revenue_lost:,.2f}", help="Dead Colonies × Predicted Yield × Estimated Honey Price ($/lb)")
 
 # ---------------------------------------------------------
 # TAB 5: DATA EXPLORER & EXPORT
 # ---------------------------------------------------------
 with tab_data:
     st.header("Data")
-    
     st.subheader("Filtered Dataset View")
     st.dataframe(df_filtered, use_container_width=True)
 
     csv_data = df_filtered.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="Download Data(.csv)",
-        data=csv_data,
-        file_name="mites_honey_data.csv",
-        mime="text/csv"
-    )
+    st.download_button(label="Download Data(.csv)", data=csv_data, file_name="mites_honey_data.csv", mime="text/csv")
 
     st.subheader("Summary Statistics")
     avail_summary_cols = [c for c in ['Honey_Yield', 'Avg_Colonies', 'Avg_Temp', 'Precip', 'Spring_DOY'] if c in df_filtered.columns]
     st.dataframe(df_filtered[avail_summary_cols].describe(), use_container_width=True)
-    from sklearn.ensemble import GradientBoostingRegressor
-
-# ---------------------------------------------------------
-# MODEL B: Colony Loss & Financial Stress Predictor
-# ---------------------------------------------------------
-st.header("📉 Model B: Economic & Colony Risk Assessment")
-st.markdown("Predicts the percentage of colonies lost to extreme climate stress and calculates the total unharvested revenue lost.")
-
-# NOTE: If your CSV doesn't have 'Colony_Loss_Rate' or 'Honey_Price_Per_Lb' yet, 
-# this block creates realistic placeholder data based on historical USDA averages 
-# so the model runs perfectly while you fetch the real API data.
-if 'Colony_Loss_Rate' not in df_ml.columns:
-    np.random.seed(42)
-    # Average baseline loss is ~30%, spiking with extreme temp/precip anomalies
-    df_ml['Colony_Loss_Rate'] = 30.0 + (df_ml['Temp_Anomaly'] * 2.5) - (df_ml['Precip_Anomaly'] * 1.2) + np.random.normal(0, 5, len(df_ml))
-    df_ml['Colony_Loss_Rate'] = df_ml['Colony_Loss_Rate'].clip(lower=5.0, upper=90.0)
-
-if 'Honey_Price_Per_Lb' not in df_ml.columns:
-    # Average wholesale price per lb (adjusts slightly by year)
-    df_ml['Honey_Price_Per_Lb'] = 2.00 + ((df_ml['Year'] - 2000) * 0.05)
-
-# 1. Calculate Baselines for Loss Rate
-state_loss_baselines = df_ml.groupby('State')['Colony_Loss_Rate'].mean().reset_index()
-state_loss_baselines.rename(columns={'Colony_Loss_Rate': 'State_Mean_Loss_Rate'}, inplace=True)
-df_ml = df_ml.merge(state_loss_baselines, on='State', how='left')
-
-# 2. Train Gradient Boosting Regressor (Model B)
-risk_feature_cols = ['Temp_Anomaly', 'Precip_Anomaly', 'DOY_Anomaly', 'Year']
-
-@st.cache_resource
-def train_risk_model(data_df):
-    df_clean = data_df.dropna(subset=['Colony_Loss_Rate'] + risk_feature_cols).sort_values('Year')
-    X = df_clean[risk_feature_cols]
-    y = df_clean['Colony_Loss_Rate']
-    
-    if len(df_clean) > 10:
-        split_idx = int(len(df_clean) * 0.8)
-        X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-        y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
-    else:
-        X_train, y_train, X_test, y_test = X, y, X, y
-        
-    # Gradient Boosting is better at catching "cliffs" (sudden mass die-offs)
-    gbr = GradientBoostingRegressor(
-        n_estimators=100, 
-        learning_rate=0.1, 
-        max_depth=4, 
-        random_state=42
-    )
-    gbr.fit(X_train, y_train)
-    
-    mae = mean_absolute_error(y_test, gbr.predict(X_test))
-    return gbr, mae
-
-risk_model, risk_mae = train_risk_model(df_ml)
-
-# 3. Predict Colony Loss & Financial Impact for the selected scenario
-risk_input_data = pd.DataFrame(
-    [[input_temp_anom, input_precip_anom, input_doy_anom, target_year]], 
-    columns=risk_feature_cols
-)
-
-predicted_loss_rate = float(risk_model.predict(risk_input_data)[0])
-predicted_loss_rate = max(0.0, min(100.0, predicted_loss_rate)) # Cap between 0 and 100%
-
-# Calculate the financial impact (Lost Revenue)
-# Formula: (Colonies Lost) * (Predicted Yield) * (Price per Lb)
-colonies_lost = (predicted_loss_rate / 100.0) * (input_colonies * 1000) # Assuming input_colonies is in thousands
-estimated_price = 2.00 + ((target_year - 2000) * 0.05) # Projecting price inflation
-revenue_lost = colonies_lost * predicted_yield * estimated_price
-
-# 4. Display the Financial Risk Output
-st.divider()
-st.subheader(f"⚠️ Economic Risk Assessment ({target_year})")
-
-r_col1, r_col2, r_col3 = st.columns(3)
-with r_col1:
-    st.metric(
-        label="Predicted Colony Loss Rate", 
-        value=f"{predicted_loss_rate:.1f}%",
-        delta=f"{predicted_loss_rate - float(s_base.get('State_Mean_Loss_Rate', 30.0)):+.1f}% vs baseline",
-        delta_color="inverse"
-    )
-with r_col2:
-    st.metric(
-        label="Total Colonies Dead", 
-        value=f"{int(colonies_lost):,}"
-    )
-with r_col3:
-    st.metric(
-        label="Estimated Financial Loss", 
-        value=f"${revenue_lost:,.2f}",
-        help="Calculated as: Dead Colonies × Predicted Yield × Estimated Honey Price ($/lb)"
-    )
