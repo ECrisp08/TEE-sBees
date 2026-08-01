@@ -151,14 +151,14 @@ if selected_region != "All Regions":
 # 3. APP NAVIGATION TABS
 # ---------------------------------------------------------
 tab_map, tab_single, tab_compare, tab_ml, tab_data = st.tabs([
-    "Merica", "Loner Stats", "1v1 Battle or FFA", "Future Bringer", "Data"
+    "Map", "Single-State Stats", "Compare States Stats", "Look into the Future", "Data"
 ])
 
 # ---------------------------------------------------------
 # TAB 1: INTERACTIVE US MAP
 # ---------------------------------------------------------
 with tab_map:
-    st.header("USA USA 🦅 🦅‼️‼️ Viewer")
+    st.header("Map of the US")
     
     map_metric = st.selectbox(
         "Select Map Feature:",
@@ -192,7 +192,7 @@ with tab_map:
 # TAB 2: SINGLE STATE DEEP DIVE
 # ---------------------------------------------------------
 with tab_single:
-    st.header("🐺🖤⛓️💔Loner Alpha")
+    st.header("Single State Stats")
     
     available_states = sorted([str(s) for s in df_filtered['State'].dropna().unique()])
     if not available_states:
@@ -227,7 +227,7 @@ with tab_single:
 # TAB 3: SIDE-BY-SIDE STATE COMPARISON
 # ---------------------------------------------------------
 with tab_compare:
-    st.header("⚔️🛡️ 🏹 🗡️Battle it out")
+    st.header("Compare Stats")
     
     all_states = sorted([str(s) for s in df['State'].dropna().unique()])
     default_states = [s for s in ['CALIFORNIA', 'NORTH DAKOTA'] if s in all_states] or ([all_states[0]] if all_states else [])
@@ -255,7 +255,7 @@ with tab_compare:
 # TAB 4: AUTOMATED ML YIELD PREDICTOR & FORECASTER
 # ---------------------------------------------------------
 with tab_ml:
-    st.header("Predict the Future (Robust Climate Model & Economic Risk)")
+    st.header("Predict the Future (With ~85% accuracy)")
     st.markdown("A highly accurate model tuned to predict yield and evaluate economic risk directly from weather and colony trends without overfitting.")
 
     # 1. Prepare Base Data
