@@ -44,7 +44,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown('<div class="mites-brand">Sigma Honey Production & Alpha Climate</div>', unsafe_allow_html=True)
+st.markdown('<div class="mites-brand">Bee's Across the Country</div>', unsafe_allow_html=True)
 st.markdown('<div class="mites-byline">MITES 50 – Project Symposium</div>', unsafe_allow_html=True)
 st.markdown("Look at number of colonies, climate, side-by-side state comparisons, and **honey predictions**.")
 
