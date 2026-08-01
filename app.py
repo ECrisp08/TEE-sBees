@@ -20,7 +20,7 @@ MITES_WHITE = '#ffffff'
 mites_heatmap = ["#fdb940", "#f58232", "#d90f81"]
 
 st.set_page_config(
-    page_title="Sigma Honey Stuff | MITES 50",
+    page_title="Bee's over the Country | MITES 50",
     layout="wide",
     initial_sidebar_state="expanded"
 )
